@@ -56,6 +56,7 @@ class JudgesMentionCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.logger = logging.getLogger(__name__)
+        self.max_wait_time = 15
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
@@ -63,10 +64,8 @@ class JudgesMentionCog(commands.Cog):
             This event is triggered when someone creates a post in the forum.
         """
 
-        await asyncio.sleep(5)
-
         check = ["перма дк", "пдк"]
-        message = await thread.fetch_message(thread.id)
+        message = await self.wait_for_message(thread)
         if (not enable_mention): return
         if (not isinstance(thread.parent, discord.ForumChannel)): return
         if (thread.parent.id != appeal_channel_id): return
@@ -110,3 +109,32 @@ class JudgesMentionCog(commands.Cog):
         self.logger.info(f"время: {datetime.datetime.now()}, ссылка на публикацию: {thread_url}")
         self.logger.info(f"было упомянуто: {len(members_list)} судей")
         self.logger.info(f"список упомянутых судей: {judges_mention_names}")
+
+    async def wait_for_message(self, thread):
+            """
+                Wait for first message, if found - return if not - None
+            """
+            try:
+                async for message in thread.history(limit=1, oldest_first=False):
+                    return message
+                
+                await asyncio.sleep(2)
+                
+                async def check_message():
+                    async for message in thread.history(limit=1, oldest_first=False):
+                        return message
+                    return None
+
+                start_time = datetime.now()
+                while (datetime.now() - start_time).seconds < self.max_wait_time:
+                    message = await check_message()
+                    if message:
+                        return message
+                    await asyncio.sleep(2)  # Проверяем каждые 2 секунды
+
+                return None
+
+            except Exception as e:
+                self.logger.error(f"Ошибка при ожидании сообщения: {e}")
+                return None
+
