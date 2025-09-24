@@ -125,8 +125,8 @@ class JudgesMentionCog(commands.Cog):
                         return message
                     return None
 
-                start_time = datetime.now()
-                while (datetime.now() - start_time).seconds < self.max_wait_time:
+                start_time = datetime.datetime.now()
+                while (datetime.datetime.now() - start_time).seconds < self.max_wait_time:
                     message = await check_message()
                     if message:
                         return message
