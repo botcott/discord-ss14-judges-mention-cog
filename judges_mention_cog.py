@@ -67,7 +67,13 @@ class JudgesMentionCog(commands.Cog):
         self.bot = bot
         self.logger = logger
         self.message_wait_timeout = 15
-        self.bot.add_view(AppealMenuButtonView())
+        self.appeal_view = None
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if self.appeal_view is None:
+            self.appeal_view = AppealMenuButtonView()
+            self.bot.add_view(self.appeal_view)
 
     async def is_appeal_forum_thread(self, thread):
         return (isinstance(thread.parent, discord.ForumChannel)
