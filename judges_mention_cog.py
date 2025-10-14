@@ -4,9 +4,9 @@ import json
 import logging
 import os
 import re
-import urllib.parse
 
 import discord
+import httpx
 from discord.ext import commands
 
 from player_api.player_api import player_api
@@ -22,6 +22,9 @@ MENTION_ON_VACATION = bool(cfg["mention_on_vacation"])
 JUDGE_ROLE_ID = int(cfg["judge_role_id"])
 VACATION_ROLE_ID = int(cfg["vacation_role_id"])
 
+LINK_FOR_CONNECT_DISCORD = cfg["link_for_connect_discord"]
+CONNECTION_LINK_API_KEY = cfg["connection_link_api_key"]
+
 PDK_WORDS = ["перма дк", "пдк", "перманентная блокировка дк"]
 BVO_WORDS = ["бво", "без возможности обжаловат"]
 ROLES_FOR_BVO = [1425845377499926679, 1425845451789439096]
@@ -32,6 +35,24 @@ logger = logging.getLogger(__name__)
 async def get_members_without_vacation(members_with_judge):
     return [member for member in members_with_judge
             if not any(role.id == VACATION_ROLE_ID for role in member.roles)]
+
+async def get_connection_url(member_id: int):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{LINK_FOR_CONNECT_DISCORD}/{member_id}",
+                headers={"X-API-Key": CONNECTION_LINK_API_KEY}
+            )
+
+            if response.status_code != 200:
+                return None
+
+            data = response.json()
+            url = data.get("Url")
+        except Exception as e:
+            logger.warning(f"Error with generating URL for connect Discord: {e}")
+            return None
+        return url
 
 
 def create_mentions_string(member_ids):
@@ -128,22 +149,13 @@ class AppealMenuButtonView(discord.ui.View):
         super().__init__(timeout=None)
 
     async def get_auth_discord_view(self, member: discord.Member):
-        state = str(member.id)
-
-        params = {
-            "response_type": "code",
-            "client_id": "912170a7-e6d8-4c69-a5e7-f21170876408",
-            "redirect_uri": "https://rimworld.deadspace14.net/auth/callback",
-            "scope": "openid profile email",
-            "state": state
-        }
-
-        base_url = "https://account.spacestation14.com/connect/authorize"
-        auth_url = f"{base_url}?{urllib.parse.urlencode(params)}"
+        url = await get_connection_url(member.id)
+        if not url:
+            return None
 
         button = discord.ui.Button(
             label="Быстрая привязка SS14 к Discord",
-            url=auth_url,
+            url=url,
             style=discord.ButtonStyle.link
         )
 
@@ -165,9 +177,17 @@ class AppealMenuButtonView(discord.ui.View):
 
         player = await player_api.get_player_info(discord_id=author_id)
         if not player or not player.get("userId"):
+            view = await self.get_auth_discord_view(interaction.user)
+            if not view:
+                await interaction.response.send_message(
+                    f"{thread.owner.mention} вы не привязали Дискорд в игре. "
+                    f"Многие функции по обжалованию вам недоступны. Однако сейчас функционал по привязке временно не "
+                    f"работает. Попробуйте немного позднее или обратитесь к администратору"
+                )
+                return
             await interaction.response.send_message(
                 f"{thread.owner.mention} вы не привязали Дискорд в игре. "
-                f"Многие функции по обжалованию вам недоступны. Сперва привяжи Дискорд, затем нажмите кнопку 'Меню' "
+                f"Многие функции по обжалованию вам недоступны. Сперва привяжи Дискорд, затем нажми кнопку 'Меню' "
                 f"повторно", view=await self.get_auth_discord_view(interaction.user), ephemeral=True)
             return
 
