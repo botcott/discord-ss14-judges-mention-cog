@@ -140,7 +140,8 @@ class JudgesMentionCog(commands.Cog):
             return
 
         menu_view = AppealMenuButtonView()
-        await thread.send("Меню для пользователя, подавшего обжалование:", view=menu_view)
+        await thread.send("Чтобы обжалование было рассмотрено, обязательно нажмите на кнопку снизу (Доступно только "
+                          "автору обжалования) и выполните дальнейшие инструкции:", view=menu_view)
         self.log_appeal_creation(thread.jump_url, first_message.author.name)
 
 
