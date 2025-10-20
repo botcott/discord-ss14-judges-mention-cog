@@ -21,7 +21,8 @@ ENABLE_MENTION = bool(cfg["enable_mention"])
 MENTION_ON_VACATION = bool(cfg["mention_on_vacation"])
 JUDGE_ROLE_ID = int(cfg["judge_role_id"])
 VACATION_ROLE_ID = int(cfg["vacation_role_id"])
-ROLES_FOR_BVO = cfg["roles_for_bvo"]
+ROLES_FOR_BVO: list[int] = cfg["roles_for_bvo"]
+ACCEPTED_TAGS: list[int] = cfg["accepted_tags"]
 
 LINK_FOR_CONNECT_DISCORD = cfg["link_for_connect_discord"]
 CONNECTION_LINK_API_KEY = cfg["connection_link_api_key"]
@@ -119,8 +120,11 @@ class JudgesMentionCog(commands.Cog):
         )
 
     @commands.Cog.listener()
-    async def on_thread_create(self, thread):
+    async def on_thread_create(self, thread: discord.Thread):
         if not ENABLE_MENTION or not await self.is_appeal_forum_thread(thread):
+            return
+
+        if not any(tag.id in ACCEPTED_TAGS for tag in thread.applied_tags):
             return
 
         try:
@@ -261,14 +265,15 @@ class OtherViolationView(discord.ui.View):
             judge_members = await get_members_without_vacation(judge_members)
 
         if not judge_members:
-            await interaction.response.send_message("Все судьи в отпуске. Обратитесь к более высокостоящей администрации")
+            await interaction.response.send_message(
+                "Все судьи в отпуске. Обратитесь к более высокостоящей администрации")
             logger.info("Нет судей вызова")
             return
 
         await interaction.response.send_message(f"Пользователь отметил, что он НЕ нашел своего нарушения.\n"
-                                        f"Активные судьи: "
-                                        f"{create_mentions_string([judge.id for judge in judge_members])}."
-                                        f"Ожидайте их ответа")
+                                                f"Активные судьи: "
+                                                f"{create_mentions_string([judge.id for judge in judge_members])}."
+                                                f"Ожидайте их ответа")
 
 
 class BanSelectionView(discord.ui.View):
