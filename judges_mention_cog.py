@@ -28,7 +28,6 @@ CONNECTION_LINK_API_KEY = cfg["connection_link_api_key"]
 
 PDK_WORDS = ["перма дк", "пдк", "перманентная блокировка дк"]
 BVO_WORDS = ["бво", "без возможности обжаловат"]
-ROLES_FOR_BVO = [1425845377499926679, 1425845451789439096]
 
 logger = logging.getLogger(__name__)
 
